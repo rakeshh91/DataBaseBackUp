@@ -1,0 +1,1330 @@
+Exportfile for AOT version 1.0 or later
+Formatversion: 1
+
+***Element: DBE
+
+; Microsoft Dynamics AX Enumtype : DBFileType unloaded
+; --------------------------------------------------------------------------------
+  ENUMTYPEVERSION 1
+  
+  ENUMTYPE #DBFileType
+    PROPERTIES
+      Name                #DBFileType
+      Label               #@SYS10194
+      Help                #Default file format for backup files
+      UseEnumValue        #Yes
+      Origin              #{3E1FCC37-EB03-4243-86C9-8C3C2AB4C6E4}
+    ENDPROPERTIES
+    
+    TYPEELEMENTS
+      #bak
+      PROPERTIES
+        Name                #bak
+        Label               #.bak
+        EnumValue           #0
+      ENDPROPERTIES
+      
+    ENDTYPEELEMENTS
+  ENDENUMTYPE
+  
+
+***Element: CLS
+
+; Microsoft Dynamics AX Class: CTS_DatabaseBackUp unloaded
+; --------------------------------------------------------------------------------
+  CLSVERSION 1
+  
+  CLASS #CTS_DatabaseBackUp
+    PROPERTIES
+      Name                #CTS_DatabaseBackUp
+      RunOn               #Server
+      Origin              #{33F9CD2B-132C-4429-A26A-02E8C86EF6CE}
+    ENDPROPERTIES
+    
+    METHODS
+      SOURCE #classDeclaration
+        #class CTS_DatabaseBackUp
+        #{
+        #}
+      ENDSOURCE
+      SOURCE #getDatabase
+        #public static server void getDatabase(str _dataBase ,str _backupPath)
+        #{
+        #     Connection                     connection;
+        #     Statement                      Stmt;
+        #     str                            SqlStmt;
+        #     SqlStatementExecutePermission  sqlPermission;
+        #     Resultset                      resultSet;
+        #
+        #     //SqlStmt        = strFmt('Exec sp_Dbnew \'%1\',\'%2\'', _dataBase, _backupPath);
+        #     SqlStmt        = strFmt('Exec [master].[dbo].[sp_Dbnew] \'%1\',\'%2\'', _dataBase, _backupPath);
+        #     connection     = new Connection();
+        #     Stmt           = connection.createStatement();
+        #     sqlPermission  = new SqlStatementExecutePermission(SqlStmt);
+        #     sqlPermission.assert();
+        #     Stmt.executeUpdate(SqlStmt);
+        #     resultSet= Stmt.executeQuery( SqlStmt );
+        #     CodeAccessPermission::revertAssert();
+        #}
+        #
+      ENDSOURCE
+      SOURCE #getDatabaseName
+        #public static server List getDatabaseName()
+        #{
+        #    Connection      connection;
+        #    Statement       statement;
+        #    str             query,st;
+        #    Resultset       resultSet;
+        #    str             defaultdb;
+        #
+        #    List   dbnames = new List(Types::String) ;
+        #
+        #
+        #    // create connection object
+        #    connection = new Connection();
+        #
+        #    // create statement
+        #    statement = connection.createStatement();
+        #
+        #    // Set the SQL statement
+        #    query = "select name from sys.databases" ;
+        #
+        #    // assert SQL statement execute permission
+        #    new SqlStatementExecutePermission(query).assert();
+        #
+        #    // when the query returns result,
+        #    // loop all results for processing
+        #    //BP Deviation documented
+        #    resultSet = statement.executeQuery(query);
+        #
+        #    while(resultSet.next())
+        #    {
+        #        // do something with the result
+        #
+        #        st = resultSet.getString(1);
+        #
+        #        if(st==SysSQLSystemInfo::construct().getloginDatabase())
+        #        {
+        #            defaultdb = st;
+        #        }
+        #        else
+        #        {
+        #            dbnames.addEnd(st);
+        #        }
+        #
+        #
+        #    }
+        #    dbnames.addStart(defaultdb);
+        #
+        #    // limit the scope of the assert call
+        #    CodeAccessPermission::revertAssert();
+        #    return dbnames;
+        #}
+      ENDSOURCE
+      SOURCE #getTime
+        #public static server str getTime(str _dataBase)
+        #{
+        #    Connection                      connection;
+        #    Statement                      Stmt;
+        #    str                            SqlStmt;
+        #    SqlStatementExecutePermission  sqlPermission;
+        #    Resultset                      resultSet;
+        #    str                            times;
+        #
+        #
+        #     SqlStmt        = strFmt('Exec sp_probardb3 \'%1\'', _dataBase);
+        #     connection     = new Connection();
+        #     Stmt           = connection.createStatement();
+        #     sqlPermission  = new SqlStatementExecutePermission(SqlStmt);
+        #     sqlPermission.assert();
+        #     Stmt.executeUpdate(SqlStmt);
+        #     resultSet      = Stmt.executeQuery( SqlStmt );
+        #
+        #        while(resultSet.next())
+        #        {
+        #            times = resultSet.getString(1);
+        #        }
+        #
+        #    CodeAccessPermission::revertAssert();
+        #    return times;
+        #}
+        #
+        #
+      ENDSOURCE
+      SOURCE #restoredb
+        #public static server void restoredb( str _backupPath, str _servername)
+        #{
+        #
+        #    str                             sqlStatement;
+        #    LoginProperty                   loginProperty;
+        #    OdbcConnection                  odbcConnection;
+        #    Statement                       statement;
+        #    ResultSet                       resultSet;
+        #    EventInbox                      inbox;
+        #    EventInboxId                    inboxId;
+        #    utcDateTime                     utdt;
+        #
+        #    loginProperty = new LoginProperty();
+        #
+        #    loginProperty.setDSN('GetUserOnline');
+        #
+        #    odbcConnection = new OdbcConnection(loginProperty);
+        #    statement      = odbcConnection.createStatement();
+        #    sqlStatement   = "select SysClientSessions group by UserId";
+        #    new SqlStatementExecutePermission(sqlStatement).assert();
+        #    resultSet      = statement.executeQuery(sqlStatement);
+        #
+        #        while (resultSet.next())
+        #        {
+        #           //CTS_DatabaseBackUp::alertMessage(resultSet.getString(1));
+        #            inboxId = EventInbox::nextEventId();
+        #            inbox.initValue();
+        #            inbox.ShowPopup   =  NoYes::Yes;
+        #            inbox.Subject     =  "Message to online user";
+        #            inbox.Message     =  "Message you want to send to user";
+        #            inbox.SendEmail   =  false;
+        #            inbox.UserId      =  resultSet.getString(1);
+        #            inbox.InboxId     =  inboxId;
+        #            inbox.AlertCreatedDateTime = utdt;
+        #            inbox.insert();
+        #        }
+        #}
+      ENDSOURCE
+      SOURCE #runProgram
+        #public static str runProgram(
+        #    FileName    _program,
+        #    str         _arguments,
+        #    boolean     _runAsAdmin         = false,
+        #    boolean     _useShellExecute    = false)
+        #{
+        #    System.Diagnostics.ProcessStartInfo processStartInfo;
+        #    System.Diagnostics.Process          process;
+        #    System.OperatingSystem              operatingSystem;
+        #    System.Version                      operatingSystemVersion;
+        #    System.Exception                    ex;
+        #    int                                 major;
+        #    Boolean                             start;
+        #    System.IO.StreamReader              streamRead;
+        #    str                                 retStr;
+        #
+        #    try
+        #    {
+        #        new InteropPermission(InteropKind::ClrInterop).assert();
+        #
+        #        processStartInfo    = new System.Diagnostics.ProcessStartInfo(_program, _arguments);
+        #        process             = new System.Diagnostics.Process();
+        #        processStartInfo.set_UseShellExecute(_useShellExecute);
+        #        processStartInfo.set_RedirectStandardOutput(true);
+        #        processStartInfo.set_WindowStyle(System.Diagnostics.ProcessWindowStyle::Minimized);
+        #        processStartInfo.set_CreateNoWindow(true);
+        #        process.set_StartInfo(processStartInfo);
+        #
+        #        start = process.Start();
+        #        process.WaitForExit();
+        #
+        #        streamRead = process.get_StandardOutput();
+        #        retStr = streamRead.ReadToEnd();
+        #
+        #        CodeAccessPermission::revertAssert();
+        #
+        #        return retStr;
+        #    }
+        #    catch(Exception::CLRError)
+        #    {
+        #        // BP Deviation documented
+        #        ex = ClrInterop::getLastException();
+        #
+        #        while (ex != null)
+        #        {
+        #            error(ex.ToString());
+        #
+        #            ex = ex.get_InnerException();
+        #        }
+        #
+        #        throw error(strFmt('Error executing "%1" with arguments "%2"', _program, _arguments));
+        #    }
+        #}
+      ENDSOURCE
+    ENDMETHODS
+  ENDCLASS
+
+***Element: FRM
+
+; Microsoft Dynamics AX Forms unloaded
+; --------------------------------------------------------------------------------
+FRMVERSION 12
+
+FORM #DataBaseBackUp
+  PROPERTIES
+    Name                #DataBaseBackUp
+    Origin              #{1CF4C880-A2C7-4828-82C1-3906F4168BCD}
+  ENDPROPERTIES
+  
+  METHODS
+    SOURCE #classDeclaration
+      #public class FormRun extends ObjectRun
+      #{
+      #
+      #   SysOperationProgressEmbedded progres;
+      #   str                          servername;
+      #   str                          database;
+      #   str                          backupPathName;
+      #   str                          loginServer;
+      #
+      #
+      #}
+    ENDSOURCE
+    SOURCE #filePathLookupTitle
+      #str filePathLookupTitle()
+      #{
+      #    return  'Database Backup Path';
+      #}
+    ENDSOURCE
+    SOURCE #fileType
+      #display str fileType()
+      #{
+      #    return "@CTS49";
+      #}
+    ENDSOURCE
+    SOURCE #getParameters
+      #public void getParameters()
+      #{
+      #    try
+      #    {
+      #        if (backUpPath.valueStr())
+      #        {
+      #            CTS_DatabaseBackUp::getDatabase(dataBaseName.valueStr(), backUpPath.valueStr());
+      #        }
+      #        else
+      #        {
+      #            throw error(strFmt("@WAX1942", backUpPath.name()));
+      #        }
+      #    }
+      #    catch(Exception::CLRError)
+      #    {
+      #        throw error(AifUtil::getClrErrorMessage());
+      #    }
+      #}
+    ENDSOURCE
+    SOURCE #init
+      #public void init()
+      #{
+      #    progres = SysOperationProgressEmbedded::newGeneral(element.form().design().control(FormControlStr(DataBaseBackUpAndRestore, EmbeddedProgressBar)));
+      #
+      #    super();
+      #    DataBaseName.getDatabase();
+      #
+      #
+      #}
+    ENDSOURCE
+    SOURCE #loginServer
+      #display str loginServer()
+      #{
+      #    SqlSystem sqlsys = new SqlSystem();
+      #    return sqlsys.loginServer();
+      #}
+    ENDSOURCE
+    SOURCE #run
+      #public void run()
+      #{
+      #    super();
+      #    progres.setFormRun(element);
+      #}
+    ENDSOURCE
+    SOURCE #viewProgressBar
+      #public void viewProgressBar(boolean visible = true)
+      #{
+      #    embeddedProgressBar.visible(visible);
+      #
+      #}
+    ENDSOURCE
+  ENDMETHODS
+  OBJECTBANK
+    PROPERTIES
+    ENDPROPERTIES
+    
+  ENDOBJECTBANK
+  
+  REFERENCEDATASOURCES
+  ENDREFERENCEDATASOURCES
+  
+  JOINS
+  ENDJOINS
+  
+  PARTREFERENCES
+  ENDPARTREFERENCES
+  
+  DESIGN
+    PROPERTIES
+      Width               #500
+      Height              #175
+      Caption             #Database BackUp
+      MaximizeBox         #No
+      MinimizeBox         #No
+    ENDPROPERTIES
+    
+    CONTAINER
+      CONTROL ACTIONPANE
+        PROPERTIES
+          Name                #ActionPane
+          ElementPosition     #134217727
+          Style               #Strip
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL ACTIONPANETAB
+        PROPERTIES
+          Name                #ActionPaneTab
+          ElementPosition     #1431655764
+          HierarchyParent     #ActionPane
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL BUTTONGROUP
+        PROPERTIES
+          Name                #DBGroup
+          ElementPosition     #1431655764
+          HierarchyParent     #ActionPaneTab
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL GROUP
+        PROPERTIES
+          Name                #EmbeddedProgressBar
+          AutoDeclaration     #Yes
+          Visible             #No
+          Top                 #120
+          Width               #425
+          ElementPosition     #1961368396
+          HierarchyParent     #Left
+          FrameType           #Thin
+          ColorScheme         #RGB
+          BackgroundColor     #128 64 0
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL GROUP
+        PROPERTIES
+          Name                #Left
+          Left                #Left edge
+          ElementPosition     #1140850686
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL BUTTON
+        PROPERTIES
+          Name                #BackUpFromDataBase
+          HelpText            #Start the backup of database
+          ElementPosition     #1073741822
+          HierarchyParent     #DBGroup
+          Text                #@SYS88055
+          ButtonDisplay       #Text & Image left
+          NormalImage         #815
+          ImageLocation       #EmbeddedResource
+        ENDPROPERTIES
+        
+        METHODS
+          SOURCE #clicked
+            #void clicked()
+            #{
+            #    int i,j,cnt;
+            #    str val;
+            #
+            #    super();
+            #
+            #    embeddedProgressBar.visible(true);
+            #    val =  CTS_DatabaseBackUp::getTime(dataBaseName.valueStr());
+            #    element.getparameters();
+            #
+            #    i = str2time(val);
+            #    cnt=i;
+            #
+            #    progres.setTotal(i);
+            #    progres.start();
+            #
+            #    for (j=1; j<=i; j++)
+            #    {
+            #        progres.setText(strfmt("@CTS48", cnt));
+            #        cnt--;
+            #        progres.setCount(j, 1);
+            #        sleep(1000);
+            #
+            #    }
+            #    embeddedProgressBar.visible(false);
+            #}
+          ENDSOURCE
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL BUTTON
+        PROPERTIES
+          Name                #Cancel
+          HelpText            #Stop Database BackUp
+          ElementPosition     #1610612734
+          HierarchyParent     #DBGroup
+          Text                #@SYS50163
+          ButtonDisplay       #Text & Image left
+          NormalImage         #8007
+          ImageLocation       #EmbeddedResource
+        ENDPROPERTIES
+        
+        METHODS
+          SOURCE #clicked
+            #void clicked()
+            #{
+            #    super();
+            #    element.close();
+            #}
+          ENDSOURCE
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL COMBOBOX
+        PROPERTIES
+          Name                #DataBaseName
+          AutoDeclaration     #Yes
+          Width               #Column width
+          HelpText            #Select the name of database which you want to take backup
+          ElementPosition     #1065151887
+          HierarchyParent     #Left
+          ColorScheme         #RGB
+          BackgroundColor     #128 128 255
+          ForegroundColor     #128 128 0
+          Label               #Database name
+        ENDPROPERTIES
+        
+        METHODS
+          SOURCE #getDatabase
+            #public void getDatabase( )
+            #{
+            #    List            dbname = new List(Types::String);
+            #    ListEnumerator  listE;
+            #
+            #
+            #    dbname = CTS_DatabaseBackUp::getDatabaseName();
+            #    listE  = dbname.getEnumerator();
+            #
+            #    while (listE.moveNext())
+            #    {
+            #     this.add(listE.current()) ;
+            #    }
+            #
+            #}
+            #
+          ENDSOURCE
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL COMBOBOX
+        PROPERTIES
+          Name                #FileType
+          AutoDeclaration     #Yes
+          AllowEdit           #No
+          ElementPosition     #1420202517
+          HierarchyParent     #Left
+          EnumType            #DBFileType
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL STRINGEDIT
+        PROPERTIES
+          Name                #BackUpPath
+          AutoDeclaration     #Yes
+          Width               #340
+          Height              #25
+          ElementPosition     #1690785456
+          HierarchyParent     #Left
+          MultiLine           #Yes
+          Label               #Backup path
+          ExtendedDataType    
+            ARRAY 
+              #FilePath
+              #
+            ENDARRAY
+        ENDPROPERTIES
+        
+        METHODS
+          SOURCE #validate
+            #public boolean validate()
+            #{
+            #    boolean ret;
+            #    //str path;
+            #
+            #    ret = super();
+            #    //path = this.valueStr();
+            #    //path = path+ @'\';
+            #    //this.text(path) ;
+            #
+            #    if (!strEndsWith(this.valueStr(), @'\'))
+            #    {
+            #       this.text(this.valueStr()+@'\');
+            #    }
+            #    return ret;
+            #}
+          ENDSOURCE
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL STRINGEDIT
+        PROPERTIES
+          Name                #LogonServer
+          AutoDeclaration     #Yes
+          Width               #Column width
+          Height              #22
+          HelpText            #The current server instance in which Ax is running
+          ElementPosition     #710101258
+          HierarchyParent     #Left
+          Label               #Server
+          DataMethod          #loginServer
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+    ENDCONTAINER
+    
+  ENDDESIGN
+  
+  PERMISSIONS #Permissions
+    PROPERTIES
+    ENDPROPERTIES
+    
+    PERMISSIONSET #Read
+      PROPERTIES
+      ENDPROPERTIES
+      
+      FORM #Controls
+      ENDFORM
+      
+    TABLES #Tables
+    ENDTABLES
+    
+  SERVERMETHODS #Server Methods
+  ENDSERVERMETHODS
+  
+ASSOCIATEDFORMS #Associated Forms
+ENDASSOCIATEDFORMS
+
+ENDPERMISSIONSET
+
+PERMISSIONSET #Update
+  PROPERTIES
+  ENDPROPERTIES
+  
+  FORM #Controls
+  ENDFORM
+  
+TABLES #Tables
+ENDTABLES
+
+SERVERMETHODS #Server Methods
+ENDSERVERMETHODS
+
+ASSOCIATEDFORMS #Associated Forms
+ENDASSOCIATEDFORMS
+
+ENDPERMISSIONSET
+
+PERMISSIONSET #Create
+  PROPERTIES
+  ENDPROPERTIES
+  
+  FORM #Controls
+  ENDFORM
+  
+TABLES #Tables
+ENDTABLES
+
+SERVERMETHODS #Server Methods
+ENDSERVERMETHODS
+
+ASSOCIATEDFORMS #Associated Forms
+ENDASSOCIATEDFORMS
+
+ENDPERMISSIONSET
+
+PERMISSIONSET #Delete
+  PROPERTIES
+  ENDPROPERTIES
+  
+  FORM #Controls
+  ENDFORM
+  
+TABLES #Tables
+ENDTABLES
+
+SERVERMETHODS #Server Methods
+ENDSERVERMETHODS
+
+ASSOCIATEDFORMS #Associated Forms
+ENDASSOCIATEDFORMS
+
+ENDPERMISSIONSET
+
+ENDPERMISSIONS
+
+ENDFORM
+
+
+***Element: FRM
+
+; Microsoft Dynamics AX Forms unloaded
+; --------------------------------------------------------------------------------
+FRMVERSION 12
+
+FORM #DataBaseBackUpRestore
+  PROPERTIES
+    Name                #DataBaseBackUpRestore
+    Origin              #{F480EB53-24CB-4196-BDC8-0BBF16F00805}
+  ENDPROPERTIES
+  
+  METHODS
+    SOURCE #classDeclaration
+      #public class FormRun extends ObjectRun
+      #{
+      #
+      #   SysOperationProgressEmbedded progres;
+      #   str  servername;
+      #   str  database;
+      #   str  backupPathName;
+      #   str  loginServer;
+      #   str  filename1;
+      #
+      #   //FormStringControl fileNameControl;
+      #
+      #}
+    ENDSOURCE
+    SOURCE #filePathLookupTitle
+      #str filePathLookupTitle()
+      #{
+      #    return  'Database Backup Path';
+      #}
+    ENDSOURCE
+    SOURCE #getParameters
+      #public void getParameters()
+      #{
+      #    try
+      #    {
+      #        if (backUpPath.valueStr())
+      #        {
+      #            CTS_DatabaseBackUp::getdatabase(dataBaseName.valueStr(), backUpPath.valueStr());
+      #            //CTS_DatabaseBackUp::restoredb(backUpPath.valueStr(),ToServer.valueStr());
+      #        }
+      #        else
+      #        {
+      #            throw error(strFmt("@WAX1942", backUpPath.name()));
+      #        }
+      #    }
+      #    catch(Exception::CLRError)
+      #    {
+      #        throw error(AifUtil::getClrErrorMessage());
+      #    }
+      #}
+    ENDSOURCE
+    SOURCE #getProgress
+      #public void getProgress()
+      #{
+      #   /*int i,j;
+      #   str val;
+      #   real  progressBar;
+      #   val =  CTS_DatabaseBackUp::getTime(dataBaseName.valueStr());
+      #   //i = str2time(val);
+      #    i=100;
+      #
+      #    j=0;
+      #
+      #   while(j<=i)
+      #    {
+      #    j++;
+      #    progressBar=(j*1000/i);
+      #
+      #    progress.pos(real2int(progressBar));
+      #    progress.rangeHi(1000);
+      #    progress.update();
+      #    progressPercent.text(strFmt('%1%', progressBar/10));
+      #    }*/
+      #
+      #   int i,x;
+      #   real  progressBar;
+      #   x=1000;
+      #
+      #   element.getparameters();
+      #   progress.rangeLo(1);
+      #   progress.rangeHi(1000);
+      #   progress.pos(1);
+      #   progress.step(1);
+      #
+      #    for (i=1; i <= x; i++)
+      #    {
+      #        progressBar=i;
+      #        progress.pos(i);
+      #        progressPercent.text(strFmt('%1%', progressBar*100/x));
+      #        progress.update();
+      #    }
+      #
+      #}
+    ENDSOURCE
+    SOURCE #init
+      #public void init()
+      #{
+      #    progres = SysOperationProgressEmbedded::newGeneral(element.form().design().control(FormControlStr(DataBaseBackUp, EmbeddedProgressBar)));
+      #    super();
+      #    DataBaseName.getDatabase();
+      #    ToServer.getservername();
+      #}
+    ENDSOURCE
+    SOURCE #loginServer
+      #display str loginServer()
+      #{
+      #    SqlSystem sqlsys = new SqlSystem();
+      #    return sqlsys.loginServer();
+      #}
+    ENDSOURCE
+    SOURCE #run
+      #public void run()
+      #{
+      #    super();
+      #    progres.setFormRun(element);
+      #}
+    ENDSOURCE
+    SOURCE #viewProgressBar
+      #public void viewProgressBar(boolean visible = true)
+      #{
+      #    embeddedProgressBar.visible(visible);
+      #}
+    ENDSOURCE
+  ENDMETHODS
+  OBJECTBANK
+    PROPERTIES
+    ENDPROPERTIES
+    
+  ENDOBJECTBANK
+  
+  REFERENCEDATASOURCES
+  ENDREFERENCEDATASOURCES
+  
+  JOINS
+  ENDJOINS
+  
+  PARTREFERENCES
+  ENDPARTREFERENCES
+  
+  DESIGN
+    PROPERTIES
+      Width               #500
+      Height              #175
+      Caption             #Database BackUp
+      MaximizeBox         #No
+      MinimizeBox         #No
+    ENDPROPERTIES
+    
+    CONTAINER
+      CONTROL ACTIONPANE
+        PROPERTIES
+          Name                #ActionPane
+          ElementPosition     #134217727
+          Style               #Strip
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL ACTIONPANETAB
+        PROPERTIES
+          Name                #ActionPaneTab
+          ElementPosition     #1431655764
+          HierarchyParent     #ActionPane
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL BUTTONGROUP
+        PROPERTIES
+          Name                #DBGroup
+          ElementPosition     #1431655764
+          HierarchyParent     #ActionPaneTab
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL GROUP
+        PROPERTIES
+          Name                #EmbeddedProgressBar
+          AutoDeclaration     #Yes
+          Visible             #No
+          Top                 #120
+          Width               #425
+          ElementPosition     #1961368396
+          HierarchyParent     #Left
+          FrameType           #Thin
+          ColorScheme         #RGB
+          BackgroundColor     #128 64 0
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL GROUP
+        PROPERTIES
+          Name                #Left
+          Left                #Left edge
+          ElementPosition     #1140850686
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL BUTTON
+        PROPERTIES
+          Name                #BackUpFromDataBase
+          HelpText            #Start the backup of database
+          ElementPosition     #1073741822
+          HierarchyParent     #DBGroup
+          Text                #@SYS88055
+          ButtonDisplay       #Text & Image left
+          NormalImage         #815
+          ImageLocation       #EmbeddedResource
+        ENDPROPERTIES
+        
+        METHODS
+          SOURCE #clicked
+            #void clicked()
+            #{
+            #  /*embeddedProgressBar.visible();
+            #    element.getparameters();
+            #    embeddedProgressBar.visible(false);
+            #
+            #    progress.pos(real2int(progressBar));
+            #    progress.rangeHi(1000);
+            #    progress.update();
+            #    progressPercent.text(strFmt('%1%', progressBar/10));*/
+            #    //int i,j,cnt;
+            #    //str val;
+            #
+            #    super();
+            #
+            #   /* embeddedProgressBar.visible(true);
+            #    val =  CTS_DatabaseBackUp::getTime(dataBaseName.valueStr());
+            #    element.getparameters();
+            #
+            #    i = str2time(val);
+            #    cnt=i;
+            #
+            #    progres.setTotal(i);
+            #    progres.start();
+            #
+            #    for (j=1; j<=i; j++)
+            #    {
+            #        progres.setText(strfmt("@CTS48", cnt));
+            #        cnt--;
+            #        progres.setCount(j, 1);
+            #        sleep(1000);
+            #
+            #    }
+            #    embeddedProgressBar.visible(false);*/
+            #    element.getparameters();
+            #    element.getProgress();
+            #
+            #
+            #
+            #}
+          ENDSOURCE
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL BUTTON
+        PROPERTIES
+          Name                #Cancel
+          HelpText            #Stop DataBase Backup
+          ElementPosition     #1789569704
+          HierarchyParent     #DBGroup
+          Text                #@SYS50163
+          ButtonDisplay       #Text & Image left
+          NormalImage         #8007
+          ImageLocation       #EmbeddedResource
+        ENDPROPERTIES
+        
+        METHODS
+          SOURCE #clicked
+            #void clicked()
+            #{
+            #    super();
+            #    element.close();
+            #}
+          ENDSOURCE
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL BUTTON
+        PROPERTIES
+          Name                #Restore
+          HelpText            #Start DataBase Restore
+          ElementPosition     #1431655763
+          HierarchyParent     #DBGroup
+          Text                #Restore
+          ButtonDisplay       #Text & Image left
+          NormalImage         #1098
+          ImageLocation       #EmbeddedResource
+        ENDPROPERTIES
+        
+        METHODS
+          SOURCE #clicked
+            #void clicked()
+            #{
+            #   //#define.combineXPO('C:\Windows\system32\cmd.exe');
+            #   //super();
+            #   //CTS_DatabaseBackUp::restoredb(backUpPath.valueStr(),ToServer.valueStr());
+            #   //CTS_DatabaseBackUp::runProgram(#combineXPO, strFmt('-utf8 -XpoDir "%1" -CombinedXpoFile "%2"', rootXpo, combinedFileName));
+            #    //CTS_DatabaseBackUp::runProgram(#combineXPO,strfmt('sc start AOS60$02 '));
+            #}
+            #
+            #
+          ENDSOURCE
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL COMBOBOX
+        PROPERTIES
+          Name                #DataBaseName
+          AutoDeclaration     #Yes
+          Width               #Column width
+          HelpText            #Select the name of database which you want to take backup
+          ElementPosition     #1065151887
+          HierarchyParent     #Left
+          ColorScheme         #RGB
+          BackgroundColor     #128 128 255
+          ForegroundColor     #128 128 0
+          Label               #Database name
+        ENDPROPERTIES
+        
+        METHODS
+          SOURCE #getDatabase
+            #public void getDatabase( )
+            #{
+            #    List            dbname = new List(Types::String);
+            #    ListEnumerator  listE;
+            #
+            #    dbname = CTS_DatabaseBackUp::getDatabaseName();
+            #    listE  = dbname.getEnumerator();
+            #
+            #    while (listE.moveNext())
+            #    {
+            #        this.add(listE.current()) ;
+            #    }
+            #}
+            #
+          ENDSOURCE
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL COMBOBOX
+        PROPERTIES
+          Name                #FileType
+          AutoDeclaration     #Yes
+          AllowEdit           #No
+          ElementPosition     #1420202517
+          HierarchyParent     #Left
+          EnumType            #DBFileType
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL COMBOBOX
+        PROPERTIES
+          Name                #ToServer
+          AutoDeclaration     #Yes
+          Width               #Column width
+          ElementPosition     #798863913
+          HierarchyParent     #Left
+          Label               #ToServer
+        ENDPROPERTIES
+        
+        METHODS
+          SOURCE #getservername
+            #public void getservername()
+            #{
+            #    this.add("PC169345");
+            #    this.add("PC161794");
+            #}
+          ENDSOURCE
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL PROGRESS
+        PROPERTIES
+          Name                #Progress
+          AutoDeclaration     #Yes
+          Left                #Left edge
+          Top                 #Bottom edge
+          Width               #Column width
+          ElementPosition     #1476395006
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL STRINGEDIT
+        PROPERTIES
+          Name                #BackUpPath
+          AutoDeclaration     #Yes
+          Width               #340
+          Height              #25
+          ElementPosition     #1690785456
+          HierarchyParent     #Left
+          MultiLine           #Yes
+          Label               #Backup path
+          ExtendedDataType    
+            ARRAY 
+              #FilePath
+              #
+            ENDARRAY
+        ENDPROPERTIES
+        
+        METHODS
+          SOURCE #validate
+            #public boolean validate()
+            #{
+            #    boolean ret;
+            #    ret = super();
+            #
+            #    if (!strEndsWith(this.valueStr(), @'\'))
+            #    {
+            #       this.text(this.valueStr()+@'\');
+            #    }
+            #    return ret;
+            #}
+          ENDSOURCE
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL STRINGEDIT
+        PROPERTIES
+          Name                #LogonServer
+          AutoDeclaration     #Yes
+          Width               #Column width
+          Height              #22
+          HelpText            #The current server instance in which Ax is running
+          ElementPosition     #532575942
+          HierarchyParent     #Left
+          Label               #FromServer
+          DataMethod          #loginServer
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+      CONTROL STRINGEDIT
+        PROPERTIES
+          Name                #ProgressPercent
+          AutoDeclaration     #Yes
+          Left                #Right edge
+          Top                 #Bottom edge
+          ElementPosition     #1811939326
+          ViewEditMode        #View
+        ENDPROPERTIES
+        
+        METHODS
+        ENDMETHODS
+      ENDCONTROL 
+      
+    ENDCONTAINER
+    
+  ENDDESIGN
+  
+  PERMISSIONS #Permissions
+    PROPERTIES
+    ENDPROPERTIES
+    
+    PERMISSIONSET #Read
+      PROPERTIES
+      ENDPROPERTIES
+      
+      FORM #Controls
+      ENDFORM
+      
+    TABLES #Tables
+    ENDTABLES
+    
+  SERVERMETHODS #Server Methods
+  ENDSERVERMETHODS
+  
+ASSOCIATEDFORMS #Associated Forms
+ENDASSOCIATEDFORMS
+
+ENDPERMISSIONSET
+
+PERMISSIONSET #Update
+  PROPERTIES
+  ENDPROPERTIES
+  
+  FORM #Controls
+  ENDFORM
+  
+TABLES #Tables
+ENDTABLES
+
+SERVERMETHODS #Server Methods
+ENDSERVERMETHODS
+
+ASSOCIATEDFORMS #Associated Forms
+ENDASSOCIATEDFORMS
+
+ENDPERMISSIONSET
+
+PERMISSIONSET #Create
+  PROPERTIES
+  ENDPROPERTIES
+  
+  FORM #Controls
+  ENDFORM
+  
+TABLES #Tables
+ENDTABLES
+
+SERVERMETHODS #Server Methods
+ENDSERVERMETHODS
+
+ASSOCIATEDFORMS #Associated Forms
+ENDASSOCIATEDFORMS
+
+ENDPERMISSIONSET
+
+PERMISSIONSET #Delete
+  PROPERTIES
+  ENDPROPERTIES
+  
+  FORM #Controls
+  ENDFORM
+  
+TABLES #Tables
+ENDTABLES
+
+SERVERMETHODS #Server Methods
+ENDSERVERMETHODS
+
+ASSOCIATEDFORMS #Associated Forms
+ENDASSOCIATEDFORMS
+
+ENDPERMISSIONSET
+
+ENDPERMISSIONS
+
+ENDFORM
+
+
+***Element: PRN
+
+; Microsoft Dynamics AX Project : DataBaseBackUP unloaded
+; --------------------------------------------------------------------------------
+  PROJECTVERSION 2
+  
+  PROJECT #DataBaseBackUP
+  SHARED
+  PROPERTIES
+    Name                #DataBaseBackUP
+    Origin              #{553FC9B2-8E70-4FBD-87E2-B13996F0236B}
+  ENDPROPERTIES
+  
+    PROJECTCLASS ProjectNode
+    GROUP #DataDictionary
+      PROPERTIES
+        Name                #DataDictionary
+        ProjectGroupType    #DataDictionary
+        GroupMask           #
+        PreventEditProperties #No
+      ENDPROPERTIES
+      
+      GROUP #BaseEnums
+        PROPERTIES
+          Name                #BaseEnums
+          ProjectGroupType    #BaseEnums
+          GroupMask           #
+          PreventEditProperties #No
+        ENDPROPERTIES
+        
+        BEGINNODE
+          FILETYPE 0
+          UTILTYPE 40
+          UTILOBJECTID 101243
+          NODETYPE 209
+          NAME #DBFileType
+        ENDNODE
+        ENDGROUP
+        
+      ENDGROUP
+      
+    GROUP #Classes
+      PROPERTIES
+        Name                #Classes
+        ProjectGroupType    #Classes
+        GroupMask           #
+        PreventEditProperties #No
+      ENDPROPERTIES
+      
+      BEGINNODE
+        FILETYPE 0
+        UTILTYPE 45
+        UTILOBJECTID 1023965
+        NODETYPE 329
+        NAME #CTS_DatabaseBackUp
+      ENDNODE
+      ENDGROUP
+      
+    GROUP #Form
+      PROPERTIES
+        Name                #Form
+        ProjectGroupType    #Forms
+        GroupMask           #
+        PreventEditProperties #No
+      ENDPROPERTIES
+      
+      BEGINNODE
+        FILETYPE 0
+        UTILTYPE 11
+        UTILOBJECTID 0
+        NODETYPE 201
+        NAME #DataBaseBackUp
+      ENDNODE
+      BEGINNODE
+        FILETYPE 0
+        UTILTYPE 11
+        UTILOBJECTID 0
+        NODETYPE 201
+        NAME #DataBaseBackUpRestore
+      ENDNODE
+      ENDGROUP
+      
+  ENDPROJECT
+  
+
+***Element: END
